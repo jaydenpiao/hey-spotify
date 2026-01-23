@@ -8,7 +8,7 @@ from core.config import settings
 from core.logging import setup_logging, get_logger
 from apps.api.middleware.request_id import RequestIDMiddleware
 from apps.api.middleware.timing import TimingMiddleware
-from apps.api.routers import health, auth, spotify, assistant
+from apps.api.routers import health, auth, spotify, assistant, voice
 from storage.sqlite import init_database
 
 # Setup logging
@@ -45,6 +45,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(spotify.router)
 app.include_router(assistant.router)
+app.include_router(voice.router)
 
 # Serve static files (web UI)
 try:

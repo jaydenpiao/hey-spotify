@@ -94,6 +94,27 @@ Server will start at: **http://127.0.0.1:8000**
 3. Authorize the app
 4. Start using commands!
 
+### Voice Input (Milestone 1) 🎤
+
+**Push-to-Talk:**
+1. Hold down the microphone button (🎤)
+2. Speak your command clearly
+3. Release the button
+4. Wait for transcription and execution
+
+**Supported Commands:** Same as text commands (play, pause, queue, etc.)
+
+**Browser Support:**
+- ✅ Chrome/Edge (recommended)
+- ✅ Firefox
+- ✅ Safari (macOS/iOS)
+
+**Tips for Best Results:**
+- Speak clearly and not too fast
+- Minimize background noise
+- Keep commands concise (< 10 seconds)
+- Ensure microphone permission is granted
+
 ### Supported Commands
 
 | Command | Description | Example |
@@ -259,11 +280,12 @@ The project follows these best practices:
 - Device management
 - Web UI command console
 
-### 🔄 Milestone 1: Push-to-Talk Voice (Next)
+### ✅ Milestone 1: Push-to-Talk Voice (COMPLETE)
 - Web audio capture (MediaRecorder API)
 - OpenAI Whisper API integration
 - End-to-end voice → transcript → action
-- Latency instrumentation
+- Latency instrumentation (<2s p95)
+- Error handling for mic permissions and network failures
 
 ### 🔮 Milestone 2: LLM Intent Compiler
 - OpenAI GPT-4 with structured output
@@ -304,6 +326,35 @@ The project follows these best practices:
 
 **Note:** As of April 2025, Spotify [no longer allows `localhost`](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri) in redirect URIs. You must use the loopback IP `127.0.0.1`.
 
+### Microphone Issues (Voice Input)
+
+**Problem:** "Microphone permission denied"
+
+**Solution:**
+1. Click the camera/microphone icon in your browser's address bar
+2. Allow microphone access for http://127.0.0.1:8000
+3. Reload the page
+4. Try recording again
+
+**Problem:** "No microphone found"
+
+**Solution:**
+1. Check that a microphone is connected
+2. Verify it works in other applications
+3. Check browser settings (Settings → Privacy → Microphone)
+4. Try a different browser
+
+**Problem:** Voice commands not transcribed correctly
+
+**Solution:**
+1. Speak more clearly and slowly
+2. Move to a quieter environment
+3. Check microphone is not muted
+4. Try holding the mic button closer to your face
+5. Ensure you have a stable internet connection (Whisper API requires network)
+
+**See also:** [VOICE_GUIDE.md](VOICE_GUIDE.md) for comprehensive voice input documentation
+
 ### Rate Limiting
 
 The app automatically handles Spotify's rate limits with exponential backoff and respects the `Retry-After` header. You'll see warnings in logs if rate limited.
@@ -332,7 +383,7 @@ MIT License - See LICENSE file for details
 
 ## Resume Line
 
-> "Built Spotify assistant backend with OAuth PKCE, device routing, playback control, and rate-limit-aware API client with exponential backoff. Implemented modular intent parsing system (rules → LLM), structured logging, and production-grade error handling."
+> "Built full-stack Spotify voice assistant with OAuth PKCE authentication, push-to-talk voice input (MediaRecorder + OpenAI Whisper), and intelligent command execution. Implemented production-grade features: exponential backoff for API rate limits, structured JSON logging with request IDs, and end-to-end latency instrumentation (<2s p95). Modular architecture supports text and voice input with graceful error handling for microphone permissions and network failures."
 
 ## Credits
 

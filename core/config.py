@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     
-    # Optional: OpenAI (for future LLM integration)
+    # OpenAI (for Whisper and future LLM integration)
     openai_api_key: str | None = None
     
     # Spotify API

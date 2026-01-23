@@ -61,12 +61,18 @@ uvicorn apps.api.main:app --reload
 
 1. Open http://127.0.0.1:8000
 2. Click "Login with Spotify"
-3. Try commands like:
+3. Try **text commands**:
    - `devices`
    - `play kanye west`
    - `now playing`
    - `pause`
    - `queue bohemian rhapsody`
+
+4. Try **voice commands** (🎤 button):
+   - Hold the mic button
+   - Say "play upbeat indie"
+   - Release and wait for transcription
+   - Music starts playing!
 
 ## Troubleshooting
 
