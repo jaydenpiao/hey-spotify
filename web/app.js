@@ -4,6 +4,9 @@ const API_BASE = '';
 
 // State
 let currentUser = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let mediaStream = null;
 
 // DOM Elements
 const loginSection = document.getElementById('login-section');
@@ -14,6 +17,10 @@ const userInfo = document.getElementById('user-info');
 const userName = document.getElementById('user-name');
 const commandInput = document.getElementById('command-input');
 const sendBtn = document.getElementById('send-btn');
+const micBtn = document.getElementById('mic-btn');
+const micIcon = document.getElementById('mic-icon');
+const recordingIndicator = document.getElementById('recording-indicator');
+const transcribingIndicator = document.getElementById('transcribing-indicator');
 const outputLog = document.getElementById('output-log');
 const clearLogBtn = document.getElementById('clear-log-btn');
 const quickActionBtns = document.querySelectorAll('.btn-action');
@@ -55,6 +62,25 @@ function setupEventListeners() {
             commandInput.value = command;
             handleCommand();
         });
+    });
+    
+    // Voice input - hold to record
+    micBtn.addEventListener('mousedown', startRecording);
+    micBtn.addEventListener('mouseup', stopRecording);
+    micBtn.addEventListener('mouseleave', (e) => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            stopRecording();
+        }
+    });
+    
+    // Touch support for mobile
+    micBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startRecording();
+    });
+    micBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopRecording();
     });
 }
 
@@ -330,6 +356,172 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Voice Input Functions
+async function startRecording() {
+    if (!currentUser) return;
+    
+    try {
+        // Request microphone permission
+        if (!mediaStream) {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 48000
+                } 
+            });
+        }
+        
+        // Initialize MediaRecorder
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(mediaStream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            // Create audio blob
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Send to backend
+            await transcribeAudio(audioBlob);
+        };
+        
+        // Start recording
+        mediaRecorder.start();
+        
+        // Update UI
+        micBtn.classList.add('recording');
+        micIcon.textContent = '⏺️';
+        recordingIndicator.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error starting recording:', error);
+        
+        let errorMsg = 'Failed to access microphone';
+        if (error.name === 'NotAllowedError') {
+            errorMsg = 'Microphone permission denied. Please enable it in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+            errorMsg = 'No microphone found. Please connect a microphone and try again.';
+        }
+        
+        logResponse('voice', errorMsg, true);
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        
+        // Update UI
+        micBtn.classList.remove('recording');
+        micBtn.classList.add('processing');
+        micIcon.textContent = '🎤';
+        recordingIndicator.classList.add('hidden');
+        transcribingIndicator.classList.remove('hidden');
+    }
+}
+
+async function transcribeAudio(audioBlob) {
+    try {
+        // Validate audio size (25MB max)
+        const maxSize = 25 * 1024 * 1024;
+        if (audioBlob.size > maxSize) {
+            throw new Error(`Audio file too large (${(audioBlob.size / 1024 / 1024).toFixed(1)}MB). Maximum is 25MB.`);
+        }
+        
+        if (audioBlob.size === 0) {
+            throw new Error('No audio recorded. Please hold the button and speak.');
+        }
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        
+        // Send to backend with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        
+        const response = await fetch(`${API_BASE}/voice/command`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            let errorMsg = 'Transcription failed';
+            try {
+                const error = await response.json();
+                errorMsg = error.detail || errorMsg;
+            } catch {}
+            
+            // Handle specific error codes
+            if (response.status === 401) {
+                errorMsg = 'Please log in again';
+                // Optionally redirect to login
+            } else if (response.status === 413) {
+                errorMsg = 'Audio file too large. Try recording a shorter message.';
+            } else if (response.status === 500) {
+                errorMsg = 'Server error. Please try again.';
+            }
+            
+            throw new Error(errorMsg);
+        }
+        
+        const result = await response.json();
+        
+        // Log the transcript
+        logCommand(`🎤 "${result.transcript}"`);
+        
+        // Display result
+        if (result.success) {
+            logResponse(`voice: ${result.transcript}`, result.message, false);
+        } else {
+            logResponse(`voice: ${result.transcript}`, result.message, true);
+        }
+        
+        // Show latency breakdown
+        const latency = result.latency_breakdown;
+        console.log('Voice command latency:', {
+            transcribe: `${latency.transcribe_ms}ms`,
+            execute: `${latency.execute_ms}ms`,
+            total: `${latency.total_ms}ms`
+        });
+        
+        // Auto-refresh now playing for relevant commands
+        if (['play', 'pause', 'resume', 'next', 'previous', 'queue'].some(cmd => 
+            result.transcript.toLowerCase().includes(cmd))) {
+            setTimeout(() => refreshNowPlaying(), 500);
+        }
+        
+    } catch (error) {
+        console.error('Transcription error:', error);
+        
+        let errorMsg = error.message;
+        
+        // Handle network errors
+        if (error.name === 'AbortError') {
+            errorMsg = 'Request timed out. Please try again with a shorter recording.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMsg = 'Network error. Please check your connection and try again.';
+        }
+        
+        logResponse('voice', `❌ ${errorMsg}`, true);
+    } finally {
+        // Reset UI
+        micBtn.classList.remove('processing');
+        transcribingIndicator.classList.add('hidden');
+    }
 }
 
 // Auto-refresh now playing every 5 seconds
