@@ -1,9 +1,31 @@
 """Rule-based intent parser using regex patterns."""
 import re
+import string
 from services.intent.schema import Intent, IntentType, IntentArgs, QueryType
 from core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def normalize_transcript(text: str) -> str:
+    """Normalize transcript for better pattern matching.
+    
+    Args:
+        text: Raw transcript from Whisper
+        
+    Returns:
+        Normalized text (lowercase, no punctuation, trimmed)
+    """
+    # Remove punctuation
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    
+    # Normalize whitespace
+    text = ' '.join(text.split())
+    
+    # Lowercase
+    text = text.lower().strip()
+    
+    return text
 
 
 # Intent patterns (pattern, intent_type, extract_query)
@@ -43,16 +65,20 @@ def parse_command(command: str) -> Intent:
     """Parse text command into structured intent.
     
     Args:
-        command: User command text
+        command: User command text (may contain punctuation from voice)
         
     Returns:
         Parsed intent
     """
+    # Normalize transcript (remove punctuation, lowercase, trim)
+    command_normalized = normalize_transcript(command)
+    
+    # Also keep original lowercase for logging
     command_lower = command.lower().strip()
     
-    # Try to match patterns
+    # Try to match patterns using normalized text
     for pattern, intent_type, has_query in INTENT_PATTERNS:
-        match = re.match(pattern, command_lower, re.IGNORECASE)
+        match = re.match(pattern, command_normalized, re.IGNORECASE)
         if match:
             args = IntentArgs()
             

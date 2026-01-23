@@ -1,6 +1,6 @@
 """Tests for rule-based intent parser."""
 import pytest
-from services.intent.rules import parse_command, extract_query_type
+from services.intent.rules import parse_command, extract_query_type, normalize_transcript
 from services.intent.schema import IntentType, QueryType
 
 
@@ -135,3 +135,34 @@ def test_extract_query_type():
     assert extract_query_type("song by taylor swift") == QueryType.ARTIST
     assert extract_query_type("track bohemian rhapsody") == QueryType.TRACK
     assert extract_query_type("kanye west") == QueryType.MIXED
+
+
+def test_normalize_transcript():
+    """Test transcript normalization."""
+    assert normalize_transcript("Pause.") == "pause"
+    assert normalize_transcript("Now playing?") == "now playing"
+    assert normalize_transcript("Devices!") == "devices"
+    assert normalize_transcript("Play... something") == "play something"
+    assert normalize_transcript("RESUME") == "resume"
+    assert normalize_transcript("  pause  ") == "pause"
+    assert normalize_transcript("What's playing?!") == "whats playing"
+
+
+def test_parse_with_punctuation():
+    """Test parsing commands with punctuation (from voice)."""
+    # These should now work with punctuation
+    assert parse_command("Pause.").intent == IntentType.PAUSE
+    assert parse_command("Devices!").intent == IntentType.GET_DEVICES
+    assert parse_command("Now playing?").intent == IntentType.GET_NOW_PLAYING
+    assert parse_command("Resume.").intent == IntentType.RESUME
+    
+    intent = parse_command("Play kanye west.")
+    assert intent.intent == IntentType.PLAY
+    assert "kanye west" in intent.args.query.lower()
+
+
+def test_parse_with_varied_capitalization():
+    """Test that capitalization doesn't matter."""
+    assert parse_command("PAUSE").intent == IntentType.PAUSE
+    assert parse_command("Pause").intent == IntentType.PAUSE
+    assert parse_command("PaUsE").intent == IntentType.PAUSE

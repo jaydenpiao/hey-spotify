@@ -100,6 +100,14 @@ All text commands work via voice:
 - **Processing:** Echo cancellation + noise suppression enabled
 - **Max Length:** ~2 minutes (25MB limit)
 
+### Transcript Processing
+The app automatically normalizes voice transcripts to improve matching:
+- **Removes punctuation** ("Pause." → "pause")
+- **Normalizes case** ("PAUSE" → "pause")
+- **Trims whitespace** ("  pause  " → "pause")
+
+This ensures Whisper's punctuation doesn't break commands!
+
 ### Latency Breakdown
 Typical timings for a 3-second voice command:
 
