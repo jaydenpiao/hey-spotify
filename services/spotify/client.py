@@ -166,11 +166,20 @@ class SpotifyClient:
                         status_code=response.status_code
                     )
                 
-                # Success - return JSON or None for 204
-                if response.status_code == 204:
+                # Success - return JSON or None for 204 / empty body
+                if response.status_code == 204 or not response.content:
                     return None
                 
-                return response.json()
+                # Try to parse JSON, handle empty responses gracefully
+                try:
+                    return response.json()
+                except ValueError:
+                    # Response claims to have content but isn't valid JSON
+                    logger.warning(
+                        f"Response has content but isn't valid JSON: {response.text[:100]}",
+                        extra={"status_code": response.status_code}
+                    )
+                    return None
             
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 if attempt < max_retries:
