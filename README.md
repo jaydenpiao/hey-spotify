@@ -4,6 +4,8 @@ A Siri-like voice assistant for Spotify with OAuth PKCE authentication, intellig
 
 **Current Status:** Milestone 0 Complete ✅ (Text Command MVP)
 
+[demo](./Users/jaydenpiao/Desktop/hey-spotify/videos/milestone0.mov)
+
 ## Features (Milestone 0)
 
 - 🔐 **Spotify OAuth PKCE Flow** - Secure authentication
