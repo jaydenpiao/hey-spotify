@@ -2,9 +2,12 @@
 
 A Siri-like voice assistant for Spotify with OAuth PKCE authentication, intelligent intent parsing, and production-grade reliability features.
 
-**Current Status:** Milestone 0 Complete ✅ (Text Command MVP)
+**Current Status:** Milestone 1 Complete ✅ (Push to Talk Command MVP)
 
 https://github.com/user-attachments/assets/0d1917b1-2f22-4458-bd47-33e58501e113
+
+
+https://github.com/user-attachments/assets/0228aebb-78cd-4d01-8c20-246c6ca60a33
 
 ## Features (Milestone 0)
 
