@@ -1,0 +1,103 @@
+# Intent Examples for LLM Training (Milestone 2)
+#
+# These examples will be used to train/prompt the LLM intent compiler
+# Each example maps a natural language utterance to a structured intent
+
+examples:
+  - utterance: "play some jazz music"
+    intent:
+      intent: PLAY
+      confidence: 0.95
+      args:
+        query: "jazz music"
+        query_type: mixed
+
+  - utterance: "pause"
+    intent:
+      intent: PAUSE
+      confidence: 1.0
+      args: {}
+
+  - utterance: "what's currently playing"
+    intent:
+      intent: GET_NOW_PLAYING
+      confidence: 1.0
+      args: {}
+
+  - utterance: "show me my devices"
+    intent:
+      intent: GET_DEVICES
+      confidence: 1.0
+      args: {}
+
+  - utterance: "play bohemian rhapsody by queen"
+    intent:
+      intent: PLAY
+      confidence: 1.0
+      args:
+        query: "bohemian rhapsody queen"
+        query_type: track
+
+  - utterance: "queue the song dancing queen"
+    intent:
+      intent: QUEUE
+      confidence: 0.9
+      args:
+        query: "dancing queen"
+        query_type: track
+
+  - utterance: "skip this song"
+    intent:
+      intent: SKIP_NEXT
+      confidence: 1.0
+      args: {}
+
+  - utterance: "go back to the previous track"
+    intent:
+      intent: SKIP_PREV
+      confidence: 1.0
+      args: {}
+
+  - utterance: "set volume to 50"
+    intent:
+      intent: SET_VOLUME
+      confidence: 1.0
+      args:
+        volume_percent: 50
+
+  - utterance: "search for taylor swift songs"
+    intent:
+      intent: SEARCH
+      confidence: 0.95
+      args:
+        query: "taylor swift"
+        query_type: artist
+
+  - utterance: "play upbeat indie music from the 2000s"
+    intent:
+      intent: PLAY
+      confidence: 0.8
+      args:
+        query: "upbeat indie 2000s"
+        query_type: mixed
+
+  - utterance: "resume playback"
+    intent:
+      intent: RESUME
+      confidence: 1.0
+      args: {}
+
+  - utterance: "play it on my laptop"
+    intent:
+      intent: TRANSFER_PLAYBACK
+      confidence: 0.85
+      args:
+        query: "laptop"
+      needs_disambiguation: true
+
+  - utterance: "add this to my queue"
+    intent:
+      intent: QUEUE
+      confidence: 0.7
+      needs_disambiguation: true
+      # Needs context about "this"

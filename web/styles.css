@@ -1,0 +1,304 @@
+/* Hey Spotify - Styles */
+
+:root {
+    --primary: #1DB954;
+    --primary-dark: #1aa34a;
+    --secondary: #191414;
+    --background: #121212;
+    --card-bg: #1e1e1e;
+    --text: #ffffff;
+    --text-secondary: #b3b3b3;
+    --border: #282828;
+    --error: #e22134;
+    --success: #1DB954;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    background: var(--background);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--primary) 0%, #1aa34a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+#user-info {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+#user-name {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+}
+
+.card h2 {
+    margin-bottom: 16px;
+    font-size: 1.5rem;
+}
+
+.card h3 {
+    margin-bottom: 12px;
+    font-size: 1.2rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+}
+
+.btn-action {
+    background: var(--secondary);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-action:hover {
+    background: var(--border);
+    border-color: var(--primary);
+}
+
+/* Input */
+.input-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+#command-input {
+    flex: 1;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 24px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#command-input:focus {
+    border-color: var(--primary);
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Output Log */
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+#output-log {
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.log-entry {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.log-command {
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.log-response {
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-response.error {
+    color: var(--error);
+}
+
+.log-response.success {
+    color: var(--success);
+}
+
+.log-time {
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+/* Now Playing */
+#now-playing-content {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.track-info {
+    flex: 1;
+}
+
+.track-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.track-artist {
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.track-device {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.album-art {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+/* Scrollbar */
+#output-log::-webkit-scrollbar {
+    width: 8px;
+}
+
+#output-log::-webkit-scrollbar-track {
+    background: var(--secondary);
+}
+
+#output-log::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+#output-log::-webkit-scrollbar-thumb:hover {
+    background: #404040;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 2rem;
+    }
+    
+    .card {
+        padding: 16px;
+    }
+    
+    .input-group {
+        flex-direction: column;
+    }
+    
+    .quick-actions {
+        justify-content: center;
+    }
+    
+    #now-playing-content {
+        flex-direction: column;
+        text-align: center;
+    }
+}

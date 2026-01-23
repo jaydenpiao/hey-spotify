@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hey Spotify - Voice Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 Hey Spotify</h1>
+            <p class="subtitle">Voice Assistant for Spotify</p>
+            <div id="user-info" class="hidden">
+                <span id="user-name"></span>
+                <button id="logout-btn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <div id="login-section" class="card">
+            <h2>Welcome!</h2>
+            <p>Connect your Spotify account to get started.</p>
+            <button id="login-btn" class="btn-primary">Login with Spotify</button>
+        </div>
+
+        <div id="app-section" class="hidden">
+            <!-- Command Console -->
+            <div class="card">
+                <h2>Command Console</h2>
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="command-input" 
+                        placeholder='Try: "play kanye west", "pause", "devices", "now playing"'
+                        autocomplete="off"
+                    >
+                    <button id="send-btn" class="btn-primary">Send</button>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="btn-action" data-command="devices">📱 Devices</button>
+                    <button class="btn-action" data-command="now playing">🎵 Now Playing</button>
+                    <button class="btn-action" data-command="pause">⏸️ Pause</button>
+                    <button class="btn-action" data-command="resume">▶️ Resume</button>
+                    <button class="btn-action" data-command="next">⏭️ Next</button>
+                    <button class="btn-action" data-command="previous">⏮️ Previous</button>
+                </div>
+            </div>
+
+            <!-- Output Log -->
+            <div class="card">
+                <div class="log-header">
+                    <h2>Output</h2>
+                    <button id="clear-log-btn" class="btn-secondary">Clear</button>
+                </div>
+                <div id="output-log"></div>
+            </div>
+
+            <!-- Now Playing Display -->
+            <div id="now-playing-card" class="card hidden">
+                <h3>Currently Playing</h3>
+                <div id="now-playing-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
