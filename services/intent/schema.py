@@ -31,7 +31,7 @@ class QueryType(str, Enum):
 class IntentArgs(BaseModel):
     """Arguments for intent execution."""
     query: str | None = None
-    query_type: QueryType = QueryType.MIXED
+    query_type: QueryType | None = QueryType.MIXED  # Made optional to match JSON schema
     device_id: str | None = None
     volume_percent: int | None = Field(None, ge=0, le=100)
     track_uri: str | None = None

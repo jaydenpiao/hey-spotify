@@ -31,6 +31,11 @@ SECRET_KEY=your_secret_key_here
 DATABASE_PATH=./hey_spotify.db
 HOST=0.0.0.0
 PORT=8000
+
+# OpenAI (for voice + LLM intent parsing)
+OPENAI_API_KEY=your_openai_key_here
+USE_LLM_INTENT_PARSER=true
+LLM_MODEL=gpt-4o
 ```
 
 **Generate SECRET_KEY:**
