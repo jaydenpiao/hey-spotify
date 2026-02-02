@@ -149,100 +149,31 @@ async function handleCommand() {
 }
 
 async function executeCommand(command) {
-    const cmd = command.toLowerCase();
+    // Route all text commands through the assistant endpoint (uses LLM for natural language)
+    const response = await fetch(`${API_BASE}/assistant/command`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            command: command
+        })
+    });
     
-    // Parse command and route to appropriate endpoint
-    if (cmd === 'devices') {
-        const response = await fetch(`${API_BASE}/spotify/devices`, {
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const devices = await response.json();
-        return formatDevices(devices);
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Command failed');
     }
     
-    if (cmd === 'now playing' || cmd === 'what\'s playing') {
-        const response = await fetch(`${API_BASE}/spotify/now-playing`, {
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const state = await response.json();
-        return state ? formatNowPlaying(state) : 'Nothing is currently playing';
+    const result = await response.json();
+    
+    // Return formatted message from backend
+    if (!result.success) {
+        throw new Error(result.message);
     }
     
-    if (cmd === 'pause') {
-        const response = await fetch(`${API_BASE}/spotify/pause`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        return '⏸️ Playback paused';
-    }
-    
-    if (cmd === 'resume') {
-        const response = await fetch(`${API_BASE}/spotify/resume`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        return '▶️ Playback resumed';
-    }
-    
-    if (cmd === 'next') {
-        const response = await fetch(`${API_BASE}/spotify/next`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        return '⏭️ Skipped to next track';
-    }
-    
-    if (cmd === 'previous') {
-        const response = await fetch(`${API_BASE}/spotify/previous`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        return '⏮️ Skipped to previous track';
-    }
-    
-    if (cmd.startsWith('play ')) {
-        const query = command.substring(5).trim();
-        const response = await fetch(`${API_BASE}/spotify/play?query=${encodeURIComponent(query)}`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to play');
-        }
-        return `🎵 Playing: ${query}`;
-    }
-    
-    if (cmd.startsWith('queue ')) {
-        const query = command.substring(6).trim();
-        const response = await fetch(`${API_BASE}/spotify/queue?query=${encodeURIComponent(query)}`, {
-            method: 'POST',
-            credentials: 'include'
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to queue');
-        }
-        return `➕ Queued: ${query}`;
-    }
-    
-    if (cmd.startsWith('search ')) {
-        const query = command.substring(7).trim();
-        const response = await fetch(`${API_BASE}/spotify/search/tracks?q=${encodeURIComponent(query)}&limit=5`, {
-            credentials: 'include'
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const tracks = await response.json();
-        return formatSearchResults(tracks);
-    }
-    
-    throw new Error('Unknown command. Try: play <song>, pause, resume, devices, now playing, queue <song>, search <query>');
+    return result.message;
 }
 
 function formatDevices(devices) {
