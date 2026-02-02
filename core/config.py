@@ -18,8 +18,14 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     
-    # OpenAI (for Whisper and future LLM integration)
+    # OpenAI (for Whisper and LLM intent parsing)
     openai_api_key: str | None = None
+    
+    # LLM Intent Parser (Milestone 2)
+    use_llm_intent_parser: bool = True
+    llm_model: str = "gpt-4o"  # gpt-4o is better for structured outputs (supports temperature=0)
+    llm_temperature: float = 0.0
+    llm_max_tokens: int = 150  # Uses max_completion_tokens for GPT-5.x, max_tokens for GPT-4.x
     
     # Spotify API
     spotify_api_base_url: str = "https://api.spotify.com/v1"
