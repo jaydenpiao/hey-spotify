@@ -1,13 +1,19 @@
 """Voice command endpoints."""
+from pathlib import Path
+
 from fastapi import APIRouter, UploadFile, File, HTTPException, Cookie
 from pydantic import BaseModel
 
 from services.voice.whisper import get_whisper_client, WhisperError
 from services.assistant.orchestrator import process_command
 from core.logging import get_logger
+from core.config import settings
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
+
+WAKE_KEYWORD_FILE = Path("web/keywords/hey_spotify.ppn")
+WAKE_MODEL_FILE = Path("web/models/porcupine_params.pv")
 
 
 class TranscribeResponse(BaseModel):
@@ -27,6 +33,14 @@ class VoiceCommandResponse(BaseModel):
     latency_breakdown: dict
 
 
+class WakeConfigResponse(BaseModel):
+    """Wake word configuration response."""
+    access_key: str
+    keyword_path: str
+    model_path: str
+    sensitivity: float
+
+
 def get_user_id(session_user_id: str | None = Cookie(default=None)) -> str:
     """Get user ID from session cookie."""
     if not session_user_id:
@@ -34,11 +48,68 @@ def get_user_id(session_user_id: str | None = Cookie(default=None)) -> str:
     return session_user_id
 
 
+def validate_wake_assets() -> None:
+    """Ensure required wake word assets are present on disk."""
+    if not WAKE_MODEL_FILE.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Wake model not found: {WAKE_MODEL_FILE}",
+        )
+
+    if not WAKE_KEYWORD_FILE.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Wake keyword not found: {WAKE_KEYWORD_FILE}",
+        )
+
+
+@router.get("/wake-config", response_model=WakeConfigResponse)
+async def get_wake_config(
+    user_id: str | None = Cookie(default=None, alias="session_user_id"),
+):
+    """Return wake word configuration for the web client."""
+    user_id = get_user_id(user_id)
+
+    if not settings.picovoice_access_key:
+        logger.warning(
+            "Wake config requested but PICOVOICE_ACCESS_KEY not configured",
+            extra={"user_id": user_id},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="PICOVOICE_ACCESS_KEY not configured",
+        )
+
+    try:
+        validate_wake_assets()
+    except HTTPException as exc:
+        logger.warning(
+            f"Wake config requested but required asset is missing: {exc.detail}",
+            extra={"user_id": user_id},
+        )
+        raise
+
+    logger.info(
+        "Wake config served",
+        extra={
+            "user_id": user_id,
+            "keyword_path": str(WAKE_KEYWORD_FILE),
+            "model_path": str(WAKE_MODEL_FILE),
+        },
+    )
+    return WakeConfigResponse(
+        access_key=settings.picovoice_access_key,
+        keyword_path="/static/keywords/hey_spotify.ppn",
+        model_path="/static/models/porcupine_params.pv",
+        sensitivity=0.65,
+    )
+
+
 @router.post("/transcribe", response_model=TranscribeResponse)
 async def transcribe_audio(
     audio: UploadFile = File(...),
     language: str | None = None,
-    user_id: str = Cookie(alias="session_user_id"),
+    user_id: str | None = Cookie(default=None, alias="session_user_id"),
 ):
     """Transcribe audio file to text using Whisper API.
     
@@ -107,7 +178,7 @@ async def transcribe_audio(
 async def execute_voice_command(
     audio: UploadFile = File(...),
     language: str | None = None,
-    user_id: str = Cookie(alias="session_user_id"),
+    user_id: str | None = Cookie(default=None, alias="session_user_id"),
 ):
     """Transcribe audio and execute the command.
     

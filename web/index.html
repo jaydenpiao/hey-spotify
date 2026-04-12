@@ -47,6 +47,16 @@
                     <span class="spinner"></span>
                     <span>Transcribing...</span>
                 </div>
+
+                <!-- Wake Word Toggle -->
+                <div class="wake-word">
+                    <label class="wake-toggle">
+                        <input type="checkbox" id="wake-toggle" disabled>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Wake Word</span>
+                    </label>
+                    <div id="wake-status" class="wake-status">Off</div>
+                </div>
                 
                 <!-- Quick Actions -->
                 <div class="quick-actions">
@@ -76,6 +86,8 @@
         </div>
     </div>
 
+    <script src="/static/vendor/picovoice/porcupine-web/index.js"></script>
+    <script src="/static/vendor/picovoice/web-voice-processor/index.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>
