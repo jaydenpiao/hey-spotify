@@ -1,12 +1,25 @@
 // Hey Spotify - Frontend JavaScript
 
 const API_BASE = '';
+const WAKE_MAX_MS = 8000;
+const WAKE_LOG_PREFIX = '[WakeWord]';
 
 // State
 let currentUser = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let mediaStream = null;
+
+// Wake word state
+let wakeEnabled = false;
+let wakeListening = false;
+let wakeBusy = false;
+let porcupineWorker = null;
+let wakeConfig = null;
+let wakeAutoStopId = null;
+let PorcupineWorkerApi = null;
+let WebVoiceApi = null;
+let WebVoiceCompatApi = null;
 
 // DOM Elements
 const loginSection = document.getElementById('login-section');
@@ -26,6 +39,8 @@ const clearLogBtn = document.getElementById('clear-log-btn');
 const quickActionBtns = document.querySelectorAll('.btn-action');
 const nowPlayingCard = document.getElementById('now-playing-card');
 const nowPlayingContent = document.getElementById('now-playing-content');
+const wakeToggle = document.getElementById('wake-toggle');
+const wakeStatus = document.getElementById('wake-status');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -65,7 +80,9 @@ function setupEventListeners() {
     });
     
     // Voice input - hold to record
-    micBtn.addEventListener('mousedown', startRecording);
+    micBtn.addEventListener('mousedown', () => {
+        void startRecording('manual');
+    });
     micBtn.addEventListener('mouseup', stopRecording);
     micBtn.addEventListener('mouseleave', (e) => {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -76,12 +93,22 @@ function setupEventListeners() {
     // Touch support for mobile
     micBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        startRecording();
+        void startRecording('manual');
     });
     micBtn.addEventListener('touchend', (e) => {
         e.preventDefault();
         stopRecording();
     });
+
+    if (wakeToggle) {
+        wakeToggle.addEventListener('change', async () => {
+            if (wakeToggle.checked) {
+                await enableWakeWord();
+            } else {
+                await disableWakeWord();
+            }
+        });
+    }
 }
 
 async function checkAuth() {
@@ -94,18 +121,21 @@ async function checkAuth() {
             currentUser = await response.json();
             showApp();
         } else {
-            showLogin();
+            currentUser = null;
+            await showLogin();
         }
     } catch (error) {
         console.error('Auth check failed:', error);
-        showLogin();
+        currentUser = null;
+        await showLogin();
     }
 }
 
-function showLogin() {
+async function showLogin() {
     loginSection.classList.remove('hidden');
     appSection.classList.add('hidden');
     userInfo.classList.add('hidden');
+    await resetWakeUI();
 }
 
 function showApp() {
@@ -113,6 +143,9 @@ function showApp() {
     appSection.classList.remove('hidden');
     userInfo.classList.remove('hidden');
     userName.textContent = currentUser.display_name || currentUser.email || 'User';
+    if (wakeToggle) {
+        wakeToggle.disabled = false;
+    }
 }
 
 async function logout() {
@@ -124,8 +157,9 @@ async function logout() {
     } catch (error) {
         console.error('Logout failed:', error);
     }
+    await disableWakeWord();
     currentUser = null;
-    showLogin();
+    await showLogin();
 }
 
 async function handleCommand() {
@@ -161,6 +195,10 @@ async function executeCommand(command) {
         })
     });
     
+    if (response.status === 401) {
+        await showLogin();
+    }
+
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || 'Command failed');
@@ -289,11 +327,261 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function setWakeStatus(text, state = null) {
+    if (!wakeStatus) return;
+    wakeStatus.textContent = text;
+    wakeStatus.className = 'wake-status';
+    if (state) {
+        wakeStatus.classList.add(state);
+    }
+}
+
+function resolvePicovoiceApis() {
+    const webVoiceGlobal = window.WebVoiceProcessor || null;
+
+    PorcupineWorkerApi = (window.PorcupineWeb && window.PorcupineWeb.PorcupineWorker)
+        ? window.PorcupineWeb.PorcupineWorker
+        : window.PorcupineWorker || null;
+    WebVoiceCompatApi = webVoiceGlobal;
+    WebVoiceApi = (webVoiceGlobal && webVoiceGlobal.WebVoiceProcessor)
+        ? webVoiceGlobal.WebVoiceProcessor
+        : webVoiceGlobal;
+
+    if (!PorcupineWorkerApi || !WebVoiceApi) {
+        return { ok: false, reason: 'Wake word SDK not loaded' };
+    }
+
+    return { ok: true, reason: '' };
+}
+
+async function resetWakeUI() {
+    if (wakeToggle) {
+        wakeToggle.checked = false;
+        wakeToggle.disabled = true;
+    }
+    await disableWakeWord();
+}
+
+function checkWakeCompatibility() {
+    if (!WebVoiceCompatApi) {
+        return { ok: false, reason: 'Wake word not supported in this browser' };
+    }
+    if (!WebVoiceCompatApi.browserCompatibilityCheck) {
+        console.info(`${WAKE_LOG_PREFIX} browserCompatibilityCheck not available, skipping`);
+        return { ok: true, reason: '' };
+    }
+
+    const result = WebVoiceCompatApi.browserCompatibilityCheck();
+    console.info(`${WAKE_LOG_PREFIX} Browser compatibility`, result);
+
+    if (typeof result === 'boolean') {
+        return { ok: result, reason: result ? '' : 'Wake word not supported in this browser' };
+    }
+
+    if (result && typeof result === 'object') {
+        if (Object.prototype.hasOwnProperty.call(result, '_picovoice') && !result._picovoice) {
+            return { ok: false, reason: 'Wake word not supported in this browser' };
+        }
+        if (Object.prototype.hasOwnProperty.call(result, 'isSupported') && !result.isSupported) {
+            return { ok: false, reason: 'Wake word not supported in this browser' };
+        }
+        if (Object.prototype.hasOwnProperty.call(result, 'browser') && !result.browser) {
+            return { ok: false, reason: 'Wake word not supported in this browser' };
+        }
+        if (Object.prototype.hasOwnProperty.call(result, 'audio') && !result.audio) {
+            return { ok: false, reason: 'Microphone audio not supported' };
+        }
+    }
+
+    return { ok: true, reason: '' };
+}
+
+async function fetchWakeConfig() {
+    const response = await fetch(`${API_BASE}/voice/wake-config`, {
+        credentials: 'include'
+    });
+
+    if (!response.ok) {
+        let errorMsg = 'Wake word configuration failed';
+        try {
+            const error = await response.json();
+            errorMsg = error.detail || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
+    }
+
+    return response.json();
+}
+
+async function enableWakeWord() {
+    if (wakeEnabled) return;
+    if (!currentUser) {
+        if (wakeToggle) wakeToggle.checked = false;
+        setWakeStatus('Please log in', 'error');
+        return;
+    }
+
+    const apiStatus = resolvePicovoiceApis();
+    if (!apiStatus.ok) {
+        if (wakeToggle) wakeToggle.checked = false;
+        setWakeStatus(apiStatus.reason || 'Wake word SDK not loaded', 'error');
+        console.error(`${WAKE_LOG_PREFIX} ${apiStatus.reason}`);
+        return;
+    }
+
+    const compat = checkWakeCompatibility();
+    if (!compat.ok) {
+        if (wakeToggle) wakeToggle.checked = false;
+        setWakeStatus(compat.reason || 'Wake word not supported', 'error');
+        console.error(`${WAKE_LOG_PREFIX} ${compat.reason}`);
+        return;
+    }
+
+    try {
+        console.info(`${WAKE_LOG_PREFIX} Enabling wake word`);
+        setWakeStatus('Starting...', 'listening');
+        wakeConfig = await fetchWakeConfig();
+        console.info(`${WAKE_LOG_PREFIX} Wake config loaded`);
+
+        porcupineWorker = await PorcupineWorkerApi.create(
+            wakeConfig.access_key,
+            [
+                {
+                    label: 'hey_spotify',
+                    publicPath: wakeConfig.keyword_path,
+                    sensitivity: wakeConfig.sensitivity ?? 0.65
+                }
+            ],
+            handleWakeDetected,
+            { publicPath: wakeConfig.model_path },
+            { processErrorCallback: handleWakeError }
+        );
+
+        wakeEnabled = true;
+        await startWakeListening();
+    } catch (error) {
+        console.error('Failed to enable wake word:', error);
+        setWakeStatus(error.message || 'Wake word error', 'error');
+        if (wakeToggle) wakeToggle.checked = false;
+        await disableWakeWord({ preserveStatus: true });
+    }
+}
+
+async function disableWakeWord({ preserveStatus = false } = {}) {
+    if (wakeEnabled || wakeListening || wakeBusy) {
+        console.info(`${WAKE_LOG_PREFIX} Disabling wake word`);
+    }
+    wakeEnabled = false;
+    wakeListening = false;
+    wakeBusy = false;
+    wakeConfig = null;
+
+    if (wakeAutoStopId) {
+        clearTimeout(wakeAutoStopId);
+        wakeAutoStopId = null;
+    }
+
+    if (porcupineWorker) {
+        if (WebVoiceApi) {
+            try {
+                await stopWakeListening();
+            } catch {}
+        }
+        try {
+            await porcupineWorker.release();
+        } catch {}
+        try {
+            porcupineWorker.terminate();
+        } catch {}
+        porcupineWorker = null;
+    }
+
+    if (wakeToggle) {
+        wakeToggle.checked = false;
+    }
+    if (!preserveStatus) {
+        setWakeStatus('Off');
+    }
+}
+
+async function startWakeListening() {
+    if (!wakeEnabled || wakeListening || wakeBusy || !porcupineWorker) return;
+    if (!WebVoiceApi) {
+        console.error(`${WAKE_LOG_PREFIX} WebVoiceProcessor not available`);
+        return;
+    }
+
+    try {
+        await WebVoiceApi.subscribe(porcupineWorker);
+        wakeListening = true;
+        setWakeStatus('Listening', 'listening');
+        console.info(`${WAKE_LOG_PREFIX} Listening`);
+    } catch (error) {
+        console.error('Failed to start wake listening:', error);
+        setWakeStatus('Wake word error', 'error');
+        await disableWakeWord({ preserveStatus: true });
+    }
+}
+
+async function stopWakeListening() {
+    if (!wakeListening || !porcupineWorker) return;
+    if (!WebVoiceApi) {
+        console.error(`${WAKE_LOG_PREFIX} WebVoiceProcessor not available`);
+        return;
+    }
+
+    try {
+        await WebVoiceApi.unsubscribe(porcupineWorker);
+        console.info(`${WAKE_LOG_PREFIX} Stopped listening`);
+    } catch (error) {
+        console.error('Failed to stop wake listening:', error);
+    } finally {
+        wakeListening = false;
+    }
+}
+
+async function handleWakeDetected() {
+    if (!wakeEnabled || wakeBusy) return;
+    wakeBusy = true;
+
+    setWakeStatus("Heard 'Hey Spotify'", 'heard');
+    await stopWakeListening();
+    console.info(`${WAKE_LOG_PREFIX} Detected wake word`);
+
+    await startRecording('wake-word');
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        wakeAutoStopId = setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            }
+        }, WAKE_MAX_MS);
+    }
+}
+
+function handleWakeError(error) {
+    console.error(`${WAKE_LOG_PREFIX} Error`, error);
+    setWakeStatus('Wake word error', 'error');
+    void disableWakeWord({ preserveStatus: true });
+}
+
 // Voice Input Functions
-async function startRecording() {
-    if (!currentUser) return;
+async function startRecording(source = 'manual') {
+    if (!currentUser) {
+        wakeBusy = false;
+        return;
+    }
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        return;
+    }
     
     try {
+        if (wakeEnabled && wakeListening) {
+            await stopWakeListening();
+        }
+        wakeBusy = true;
+        console.info(`${WAKE_LOG_PREFIX} Starting recording`, { source });
+
         // Request microphone permission
         if (!mediaStream) {
             mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -344,6 +632,13 @@ async function startRecording() {
         }
         
         logResponse('voice', errorMsg, true);
+        wakeBusy = false;
+        if (wakeEnabled && source === 'wake-word') {
+            setWakeStatus(errorMsg, 'error');
+            await disableWakeWord({ preserveStatus: true });
+        } else if (wakeEnabled) {
+            await startWakeListening();
+        }
     }
 }
 
@@ -357,6 +652,11 @@ function stopRecording() {
         micIcon.textContent = '🎤';
         recordingIndicator.classList.add('hidden');
         transcribingIndicator.classList.remove('hidden');
+    }
+
+    if (wakeAutoStopId) {
+        clearTimeout(wakeAutoStopId);
+        wakeAutoStopId = null;
     }
 }
 
@@ -399,7 +699,7 @@ async function transcribeAudio(audioBlob) {
             // Handle specific error codes
             if (response.status === 401) {
                 errorMsg = 'Please log in again';
-                // Optionally redirect to login
+                await showLogin();
             } else if (response.status === 413) {
                 errorMsg = 'Audio file too large. Try recording a shorter message.';
             } else if (response.status === 500) {
@@ -452,6 +752,10 @@ async function transcribeAudio(audioBlob) {
         // Reset UI
         micBtn.classList.remove('processing');
         transcribingIndicator.classList.add('hidden');
+        wakeBusy = false;
+        if (wakeEnabled) {
+            await startWakeListening();
+        }
     }
 }
 

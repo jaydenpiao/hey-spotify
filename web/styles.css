@@ -254,6 +254,82 @@ h1 {
     }
 }
 
+/* Wake Word */
+.wake-word {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--secondary);
+    margin-bottom: 12px;
+}
+
+.wake-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.wake-toggle input {
+    display: none;
+}
+
+.toggle-slider {
+    width: 44px;
+    height: 24px;
+    background: var(--border);
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.2s ease;
+}
+
+.toggle-slider::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s ease;
+}
+
+.wake-toggle input:checked + .toggle-slider {
+    background: var(--primary);
+}
+
+.wake-toggle input:checked + .toggle-slider::after {
+    transform: translateX(20px);
+}
+
+.toggle-label {
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.wake-status {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.wake-status.listening {
+    color: var(--primary);
+}
+
+.wake-status.heard {
+    color: #f59e0b;
+}
+
+.wake-status.error {
+    color: var(--error);
+}
+
 /* Quick Actions */
 .quick-actions {
     display: flex;

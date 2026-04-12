@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     
     # OpenAI (for Whisper and LLM intent parsing)
     openai_api_key: str | None = None
+
+    # Picovoice (wake word detection)
+    picovoice_access_key: str | None = None
     
     # LLM Intent Parser (Milestone 2)
     use_llm_intent_parser: bool = True
