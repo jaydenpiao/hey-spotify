@@ -1,10 +1,6 @@
 """Tests for LLM intent compiler."""
-import os
-
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-
-os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
 
 from services.intent.llm_compiler import (
     compile_intent_with_llm,
@@ -15,6 +11,17 @@ from services.intent.llm_compiler import (
     INTENT_SCHEMA,
 )
 from services.intent.schema import Intent, IntentType, IntentArgs
+
+
+@pytest.fixture(autouse=True)
+def configure_openai_settings(monkeypatch):
+    """Ensure compiler tests do not depend on the developer's local .env."""
+    import services.intent.llm_compiler as llm_module
+
+    monkeypatch.setattr(llm_module.settings, "openai_api_key", "test-openai-key")
+    llm_module._llm_compiler = None
+    yield
+    llm_module._llm_compiler = None
 
 
 def test_load_examples():
