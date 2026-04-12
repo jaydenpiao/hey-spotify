@@ -16,6 +16,8 @@ os.environ.setdefault(
 
 from apps.api.main import app
 from apps.api.routers import voice as voice_router
+from core.errors import OpenAIDependencyError
+from services.voice import wake as wake_service
 
 
 @pytest.fixture
@@ -36,6 +38,8 @@ def configure_wake_assets(monkeypatch, tmp_path, *, model_exists=True, keyword_e
 
     monkeypatch.setattr(voice_router, "WAKE_MODEL_FILE", model_path)
     monkeypatch.setattr(voice_router, "WAKE_KEYWORD_FILE", keyword_path)
+    monkeypatch.setattr(wake_service, "WAKE_MODEL_FILE", model_path)
+    monkeypatch.setattr(wake_service, "WAKE_KEYWORD_FILE", keyword_path)
 
 
 def authenticate_client(client):
@@ -100,3 +104,51 @@ def test_get_wake_config_requires_authentication(client, monkeypatch, tmp_path):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Not authenticated"
+
+
+def test_voice_command_invalid_openai_auth_returns_503(client, monkeypatch):
+    class InvalidAuthWhisperClient:
+        async def transcribe_audio(self, **kwargs):
+            raise OpenAIDependencyError(
+                detail="Voice input unavailable: OpenAI credentials are invalid.",
+                error_code="openai_invalid_auth",
+                status="invalid_auth",
+            )
+
+    monkeypatch.setattr(voice_router, "get_whisper_client", lambda: InvalidAuthWhisperClient())
+    authenticate_client(client)
+
+    response = client.post(
+        "/voice/command",
+        files={"audio": ("recording.webm", b"audio-bytes", "audio/webm")},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Voice input unavailable: OpenAI credentials are invalid.",
+        "error_code": "openai_invalid_auth",
+    }
+
+
+def test_transcribe_missing_openai_config_returns_503(client, monkeypatch):
+    class MissingConfigWhisperClient:
+        async def transcribe_audio(self, **kwargs):
+            raise OpenAIDependencyError(
+                detail="Voice input unavailable: OPENAI_API_KEY is not configured.",
+                error_code="openai_missing_config",
+                status="missing",
+            )
+
+    monkeypatch.setattr(voice_router, "get_whisper_client", lambda: MissingConfigWhisperClient())
+    authenticate_client(client)
+
+    response = client.post(
+        "/voice/transcribe",
+        files={"audio": ("recording.webm", b"audio-bytes", "audio/webm")},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Voice input unavailable: OPENAI_API_KEY is not configured.",
+        "error_code": "openai_missing_config",
+    }

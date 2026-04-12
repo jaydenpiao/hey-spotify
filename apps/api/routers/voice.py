@@ -1,19 +1,21 @@
 """Voice command endpoints."""
-from pathlib import Path
-
 from fastapi import APIRouter, UploadFile, File, HTTPException, Cookie
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from services.voice.whisper import get_whisper_client, WhisperError
+from services.voice.wake import (
+    WAKE_KEYWORD_FILE,
+    WAKE_MODEL_FILE,
+    validate_wake_assets,
+)
 from services.assistant.orchestrator import process_command
+from core.errors import OpenAIDependencyError
 from core.logging import get_logger
 from core.config import settings
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
-
-WAKE_KEYWORD_FILE = Path("web/keywords/hey_spotify.ppn")
-WAKE_MODEL_FILE = Path("web/models/porcupine_params.pv")
 
 
 class TranscribeResponse(BaseModel):
@@ -46,21 +48,6 @@ def get_user_id(session_user_id: str | None = Cookie(default=None)) -> str:
     if not session_user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return session_user_id
-
-
-def validate_wake_assets() -> None:
-    """Ensure required wake word assets are present on disk."""
-    if not WAKE_MODEL_FILE.exists():
-        raise HTTPException(
-            status_code=400,
-            detail=f"Wake model not found: {WAKE_MODEL_FILE}",
-        )
-
-    if not WAKE_KEYWORD_FILE.exists():
-        raise HTTPException(
-            status_code=400,
-            detail=f"Wake keyword not found: {WAKE_KEYWORD_FILE}",
-        )
 
 
 @router.get("/wake-config", response_model=WakeConfigResponse)
@@ -145,7 +132,7 @@ async def transcribe_audio(
         f"Received audio file for transcription",
         extra={
             "user_id": user_id,
-            "filename": audio.filename,
+            "upload_filename": audio.filename,
             "content_type": audio.content_type,
             "size_bytes": len(content),
         }
@@ -166,9 +153,26 @@ async def transcribe_audio(
             latency_ms=result["latency_ms"],
         )
     
+    except OpenAIDependencyError as e:
+        logger.warning(
+            "Voice transcription dependency unavailable",
+            extra={
+                "user_id": user_id,
+                "dependency": "openai",
+                "openai_status": e.status,
+                "error_code": e.error_code,
+            },
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": e.detail,
+                "error_code": e.error_code,
+            },
+        )
     except WhisperError as e:
         logger.error(f"Whisper transcription failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=e.http_status, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error in transcription: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -243,9 +247,26 @@ async def execute_voice_command(
             }
         )
     
+    except OpenAIDependencyError as e:
+        logger.warning(
+            "Voice command dependency unavailable",
+            extra={
+                "user_id": user_id,
+                "dependency": "openai",
+                "openai_status": e.status,
+                "error_code": e.error_code,
+            },
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": e.detail,
+                "error_code": e.error_code,
+            },
+        )
     except WhisperError as e:
         logger.error(f"Whisper error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=e.http_status, detail=str(e))
     except Exception as e:
         logger.error(f"Error executing voice command: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

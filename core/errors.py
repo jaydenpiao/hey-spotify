@@ -40,6 +40,16 @@ class IntentParseError(HeySpotifyError):
     pass
 
 
+class OpenAIDependencyError(HeySpotifyError):
+    """OpenAI-backed functionality is unavailable."""
+
+    def __init__(self, detail: str, error_code: str, status: str):
+        super().__init__(detail)
+        self.detail = detail
+        self.error_code = error_code
+        self.status = status
+
+
 class InvalidTokenError(AuthError):
     """Token is invalid or expired."""
     pass

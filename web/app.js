@@ -3,12 +3,15 @@
 const API_BASE = '';
 const WAKE_MAX_MS = 8000;
 const WAKE_LOG_PREFIX = '[WakeWord]';
+const CAPABILITIES_REFRESH_MS = 60000;
 
 // State
 let currentUser = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let mediaStream = null;
+let assistantCapabilities = null;
+let capabilitiesRefreshId = null;
 
 // Wake word state
 let wakeEnabled = false;
@@ -41,6 +44,7 @@ const nowPlayingCard = document.getElementById('now-playing-card');
 const nowPlayingContent = document.getElementById('now-playing-content');
 const wakeToggle = document.getElementById('wake-toggle');
 const wakeStatus = document.getElementById('wake-status');
+const capabilityNotice = document.getElementById('capability-notice');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -120,6 +124,8 @@ async function checkAuth() {
         if (response.ok) {
             currentUser = await response.json();
             showApp();
+            await refreshAssistantCapabilities();
+            startCapabilitiesRefresh();
         } else {
             currentUser = null;
             await showLogin();
@@ -132,9 +138,13 @@ async function checkAuth() {
 }
 
 async function showLogin() {
+    stopCapabilitiesRefresh();
+    assistantCapabilities = null;
     loginSection.classList.remove('hidden');
     appSection.classList.add('hidden');
     userInfo.classList.add('hidden');
+    setCapabilityNotice('');
+    setMicAvailability(false, 'Voice input unavailable');
     await resetWakeUI();
 }
 
@@ -143,9 +153,7 @@ function showApp() {
     appSection.classList.remove('hidden');
     userInfo.classList.remove('hidden');
     userName.textContent = currentUser.display_name || currentUser.email || 'User';
-    if (wakeToggle) {
-        wakeToggle.disabled = false;
-    }
+    setMicAvailability(false, 'Loading voice capabilities...');
 }
 
 async function logout() {
@@ -278,6 +286,151 @@ function logResponse(command, response, isError) {
         time.className = 'log-time';
         time.textContent = new Date().toLocaleTimeString();
         lastEntry.appendChild(time);
+    }
+}
+
+function setCapabilityNotice(message, level = 'info') {
+    if (!capabilityNotice) return;
+    capabilityNotice.textContent = message;
+    capabilityNotice.className = 'capability-notice';
+    if (!message) {
+        capabilityNotice.classList.add('hidden');
+        return;
+    }
+    capabilityNotice.classList.add(level);
+}
+
+function setMicAvailability(isAvailable, reason = null) {
+    if (!micBtn) return;
+    micBtn.disabled = !isAvailable;
+    micBtn.title = isAvailable ? 'Hold to speak' : (reason || 'Voice input unavailable');
+}
+
+function buildCapabilitiesFallback(reason = 'Assistant capabilities could not be loaded.') {
+    return {
+        text_command_mode: 'regex',
+        voice_available: false,
+        voice_reason: 'Voice input unavailable: assistant capabilities could not be loaded.',
+        wake_server_available: false,
+        wake_server_reason: 'Wake word unavailable: assistant capabilities could not be loaded.',
+        openai_status: 'probe_error',
+        fetch_reason: reason
+    };
+}
+
+function buildCapabilityNotice(capabilities) {
+    if (!capabilities) {
+        return {
+            message: 'Voice input is unavailable until assistant capabilities can be loaded.',
+            level: 'warning'
+        };
+    }
+
+    if (!capabilities.voice_available) {
+        return {
+            message: `Text commands are running in regex mode. ${capabilities.voice_reason}`,
+            level: 'warning'
+        };
+    }
+
+    if (!capabilities.wake_server_available && capabilities.wake_server_reason) {
+        return {
+            message: capabilities.wake_server_reason,
+            level: 'info'
+        };
+    }
+
+    if (capabilities.text_command_mode === 'regex') {
+        return {
+            message: 'Text commands are running in regex mode.',
+            level: 'info'
+        };
+    }
+
+    return null;
+}
+
+async function applyAssistantCapabilities(capabilities) {
+    assistantCapabilities = capabilities;
+
+    const voiceAvailable = Boolean(capabilities?.voice_available);
+    const wakeAvailable = voiceAvailable && Boolean(capabilities?.wake_server_available);
+
+    if (!voiceAvailable) {
+        await disableWakeWord({ preserveStatus: false });
+        if (wakeToggle) {
+            wakeToggle.disabled = true;
+        }
+        setMicAvailability(false, capabilities?.voice_reason);
+        setWakeStatus('Voice unavailable', 'error');
+    } else if (!wakeAvailable) {
+        await disableWakeWord({ preserveStatus: false });
+        if (wakeToggle) {
+            wakeToggle.disabled = true;
+        }
+        setMicAvailability(true);
+        setWakeStatus('Wake unavailable', 'error');
+    } else {
+        setMicAvailability(true);
+        if (wakeToggle) {
+            wakeToggle.disabled = false;
+        }
+        if (!wakeEnabled) {
+            setWakeStatus('Off');
+        }
+    }
+
+    const notice = buildCapabilityNotice(capabilities);
+    if (notice) {
+        setCapabilityNotice(notice.message, notice.level);
+    } else {
+        setCapabilityNotice('');
+    }
+}
+
+async function fetchAssistantCapabilities() {
+    const response = await fetch(`${API_BASE}/assistant/capabilities`, {
+        credentials: 'include'
+    });
+
+    if (response.status === 401) {
+        await showLogin();
+        throw new Error('Please log in again');
+    }
+
+    if (!response.ok) {
+        throw new Error('Failed to load assistant capabilities');
+    }
+
+    return response.json();
+}
+
+async function refreshAssistantCapabilities() {
+    if (!currentUser) return;
+
+    try {
+        const capabilities = await fetchAssistantCapabilities();
+        await applyAssistantCapabilities(capabilities);
+    } catch (error) {
+        if (!currentUser) {
+            return;
+        }
+        console.error('Failed to refresh assistant capabilities:', error);
+        await applyAssistantCapabilities(buildCapabilitiesFallback(error.message));
+    }
+}
+
+function startCapabilitiesRefresh() {
+    stopCapabilitiesRefresh();
+    capabilitiesRefreshId = setInterval(() => {
+        void refreshAssistantCapabilities();
+    }, CAPABILITIES_REFRESH_MS);
+}
+
+function stopCapabilitiesRefresh() {
+    if (capabilitiesRefreshId) {
+        clearInterval(capabilitiesRefreshId);
+        capabilitiesRefreshId = null;
     }
 }
 
@@ -418,6 +571,14 @@ async function enableWakeWord() {
     if (!currentUser) {
         if (wakeToggle) wakeToggle.checked = false;
         setWakeStatus('Please log in', 'error');
+        return;
+    }
+    if (!assistantCapabilities?.wake_server_available) {
+        if (wakeToggle) wakeToggle.checked = false;
+        setWakeStatus('Wake unavailable', 'error');
+        if (assistantCapabilities?.wake_server_reason) {
+            setCapabilityNotice(assistantCapabilities.wake_server_reason, 'warning');
+        }
         return;
     }
 
@@ -570,6 +731,12 @@ async function startRecording(source = 'manual') {
         wakeBusy = false;
         return;
     }
+    if (!assistantCapabilities?.voice_available) {
+        wakeBusy = false;
+        const errorMsg = assistantCapabilities?.voice_reason || 'Voice input unavailable.';
+        setCapabilityNotice(`Text commands are running in regex mode. ${errorMsg}`, 'warning');
+        return;
+    }
 
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         return;
@@ -691,15 +858,19 @@ async function transcribeAudio(audioBlob) {
         
         if (!response.ok) {
             let errorMsg = 'Transcription failed';
+            let errorCode = null;
             try {
                 const error = await response.json();
                 errorMsg = error.detail || errorMsg;
+                errorCode = error.error_code || null;
             } catch {}
             
             // Handle specific error codes
             if (response.status === 401) {
                 errorMsg = 'Please log in again';
                 await showLogin();
+            } else if (response.status === 503 && errorCode) {
+                await refreshAssistantCapabilities();
             } else if (response.status === 413) {
                 errorMsg = 'Audio file too large. Try recording a shorter message.';
             } else if (response.status === 500) {

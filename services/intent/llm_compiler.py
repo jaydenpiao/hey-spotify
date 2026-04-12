@@ -2,10 +2,19 @@
 import time
 import yaml
 from pathlib import Path
-from openai import AsyncOpenAI
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    PermissionDeniedError,
+)
 from pydantic import ValidationError
 
 from services.intent.schema import Intent, IntentType, IntentArgs, QueryType
+from services.openai_status import update_openai_dependency_status
 from core.config import settings
 from core.logging import get_logger
 from core.errors import HeySpotifyError
@@ -232,6 +241,14 @@ class LLMIntentCompiler:
         except ValidationError as e:
             logger.error(f"Intent validation error: {e}")
             raise LLMCompilerError(f"Invalid intent structure: {e}")
+
+        except (AuthenticationError, PermissionDeniedError) as e:
+            update_openai_dependency_status("invalid_auth")
+            raise LLMCompilerError("OpenAI credentials are invalid") from e
+
+        except (APIConnectionError, APITimeoutError, APIStatusError, APIError) as e:
+            update_openai_dependency_status("probe_error")
+            raise LLMCompilerError("OpenAI service is temporarily unavailable") from e
         
         except Exception as e:
             latency_ms = (time.perf_counter() - start_time) * 1000

@@ -1,18 +1,33 @@
 """OpenAI Whisper API integration for speech-to-text."""
 import time
-from pathlib import Path
-from openai import AsyncOpenAI
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    PermissionDeniedError,
+)
 
 from core.config import settings
 from core.logging import get_logger
-from core.errors import HeySpotifyError
+from core.errors import HeySpotifyError, OpenAIDependencyError
+from services.openai_status import (
+    get_openai_error_code,
+    get_voice_unavailable_detail,
+    update_openai_dependency_status,
+)
 
 logger = get_logger(__name__)
 
 
 class WhisperError(HeySpotifyError):
     """Error calling Whisper API."""
-    pass
+
+    def __init__(self, message: str, http_status: int = 500):
+        super().__init__(message)
+        self.http_status = http_status
 
 
 class WhisperClient:
@@ -21,7 +36,12 @@ class WhisperClient:
     def __init__(self):
         """Initialize Whisper client."""
         if not settings.openai_api_key:
-            raise WhisperError("OPENAI_API_KEY not configured")
+            update_openai_dependency_status("missing")
+            raise OpenAIDependencyError(
+                detail=get_voice_unavailable_detail("missing"),
+                error_code=get_openai_error_code("missing") or "openai_missing_config",
+                status="missing",
+            )
         
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
     
@@ -98,6 +118,22 @@ class WhisperClient:
                 "latency_ms": round(latency_ms, 2),
             }
         
+        except (AuthenticationError, PermissionDeniedError) as e:
+            update_openai_dependency_status("invalid_auth")
+            raise OpenAIDependencyError(
+                detail=get_voice_unavailable_detail("invalid_auth"),
+                error_code=get_openai_error_code("invalid_auth") or "openai_invalid_auth",
+                status="invalid_auth",
+            ) from e
+
+        except (APIConnectionError, APITimeoutError, APIStatusError, APIError) as e:
+            update_openai_dependency_status("probe_error")
+            raise OpenAIDependencyError(
+                detail=get_voice_unavailable_detail("probe_error"),
+                error_code=get_openai_error_code("probe_error") or "openai_probe_error",
+                status="probe_error",
+            ) from e
+
         except Exception as e:
             latency_ms = (time.perf_counter() - start_time) * 1000
             logger.error(

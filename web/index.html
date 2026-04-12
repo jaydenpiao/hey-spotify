@@ -35,7 +35,7 @@
                         autocomplete="off"
                     >
                     <button id="send-btn" class="btn-primary">Send</button>
-                    <button id="mic-btn" class="btn-mic" title="Hold to speak">
+                    <button id="mic-btn" class="btn-mic" title="Voice input unavailable" disabled>
                         <span id="mic-icon">🎤</span>
                     </button>
                 </div>
@@ -75,6 +75,7 @@
                     <h2>Output</h2>
                     <button id="clear-log-btn" class="btn-secondary">Clear</button>
                 </div>
+                <div id="capability-notice" class="capability-notice hidden"></div>
                 <div id="output-log"></div>
             </div>
 

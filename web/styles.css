@@ -345,6 +345,27 @@ h1 {
     margin-bottom: 16px;
 }
 
+.capability-notice {
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.capability-notice.info {
+    background: rgba(29, 185, 84, 0.08);
+    border-color: rgba(29, 185, 84, 0.3);
+    color: var(--text);
+}
+
+.capability-notice.warning {
+    background: rgba(226, 33, 52, 0.12);
+    border-color: rgba(226, 33, 52, 0.35);
+    color: var(--text);
+}
+
 #output-log {
     background: var(--secondary);
     border: 1px solid var(--border);
