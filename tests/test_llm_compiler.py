@@ -1,6 +1,11 @@
 """Tests for LLM intent compiler."""
+import os
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+
+os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
+
 from services.intent.llm_compiler import (
     compile_intent_with_llm,
     get_llm_compiler,
