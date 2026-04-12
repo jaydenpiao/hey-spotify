@@ -220,8 +220,21 @@ Typical timings for a 3-second voice command:
 ### Keyboard Shortcut (Future)
 Coming in a future update: Press and hold `Space` to activate voice input without clicking.
 
-### Custom Wake Word (Milestone 3)
-Upcoming feature: "Hey Spotify" wake word for hands-free activation.
+### Wake Word (Milestone 3)
+Hands-free activation with the “Hey Spotify” wake word (Porcupine Web).
+
+**Setup**
+1. Add `PICOVOICE_ACCESS_KEY` to `.env`
+2. Use the pinned Picovoice assets already committed in the repo:
+   - `web/vendor/picovoice/porcupine-web/index.js`
+   - `web/vendor/picovoice/web-voice-processor/index.js`
+   - `web/models/porcupine_params.pv`
+   - `web/keywords/hey_spotify.ppn`
+3. Review `web/vendor/picovoice/manifest.json` if you need the exact upstream URLs and hashes
+
+**Use**
+- Toggle **Wake Word** in the UI
+- Say “Hey Spotify” to auto-record and execute a command
 
 ## Cost Estimate
 

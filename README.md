@@ -2,7 +2,7 @@
 
 A Siri-like voice assistant for Spotify with OAuth PKCE authentication, intelligent intent parsing, and production-grade reliability features.
 
-**Current Status:** Milestone 1 Complete ✅ (Push to Talk Command MVP)
+**Current Status:** Milestone 3 Complete ✅ (Wake Word Detection)
 
 https://github.com/user-attachments/assets/0d1917b1-2f22-4458-bd47-33e58501e113
 
@@ -29,6 +29,12 @@ https://github.com/user-attachments/assets/0228aebb-78cd-4d01-8c20-246c6ca60a33
 - 🔄 **Hybrid Parser** - LLM + regex fallback for 99.9% reliability
 - ⚡ **Fast** - <400ms p95 latency
 - 💰 **Cheap** - ~$0.0001 per command
+
+### Milestone 3 (Complete)
+- 🟢 **Wake Word Detection** - Say "Hey Spotify" to start recording hands-free
+- 🎛️ **Wake Toggle** - Explicit opt-in listening from the web UI
+- 📦 **Pinned Picovoice Runtime** - Vendored IIFE assets with hashes in `web/vendor/picovoice/manifest.json`
+- 🛡️ **Wake Config Validation** - Backend blocks missing-key and missing-asset setups before browser init
 
 ## Prerequisites
 
@@ -308,7 +314,7 @@ The project follows these best practices:
 - Deterministic with temperature=0
 - See [LLM_GUIDE.md](LLM_GUIDE.md) for details
 
-### 🔮 Milestone 3: Wake Word Detection
+### ✅ Milestone 3: Wake Word Detection (COMPLETE)
 - Porcupine integration (web WASM)
 - "Hey Spotify" hotword activation
 - Streaming audio pipeline
@@ -369,6 +375,23 @@ The project follows these best practices:
 5. Ensure you have a stable internet connection (Whisper API requires network)
 
 **See also:** [VOICE_GUIDE.md](VOICE_GUIDE.md) for comprehensive voice input documentation
+
+### Wake Word (Milestone 3) 🟢
+
+Hands-free activation with the “Hey Spotify” wake word (Porcupine Web).
+
+**Setup**
+1. Add `PICOVOICE_ACCESS_KEY` to `.env` (see `.env.example`)
+2. Use the pinned assets already committed in the repo:
+   - `web/vendor/picovoice/porcupine-web/index.js` from `@picovoice/porcupine-web@4.0.0`
+   - `web/vendor/picovoice/web-voice-processor/index.js` from `@picovoice/web-voice-processor@4.0.9`
+   - `web/models/porcupine_params.pv`
+   - `web/keywords/hey_spotify.ppn`
+3. Review `web/vendor/picovoice/manifest.json` if you need the upstream source URLs and SHA256 hashes
+
+**Use**
+- Toggle **Wake Word** in the UI
+- Say “Hey Spotify” → auto-records → transcribes → executes
 
 ### Rate Limiting
 
