@@ -203,15 +203,17 @@ This document tracks the implementation progress for the Hey Spotify voice assis
 ## Milestone 3: Wake Word Detection 🔮
 
 ### Task 15: Porcupine Integration
-- [ ] Add Porcupine WASM to web client
-- [ ] Wake word detection ("Hey Spotify")
-- [ ] Streaming audio pipeline
-- [ ] Wake word activation UI
+- [x] Add Porcupine WASM to web client
+- [x] Wake word detection ("Hey Spotify")
+- [x] Streaming audio pipeline
+- [x] Wake word activation UI
 
 ### Task 16: Always-On Pipeline
-- [ ] Background mic listening
-- [ ] Wake word → record → transcribe
-- [ ] Privacy controls
+- [x] Background mic listening
+- [x] Wake word → record → transcribe
+- [x] Privacy controls
+
+**Note:** Pinned Picovoice runtime assets and wake files are committed under `web/vendor/picovoice/`, `web/models/`, and `web/keywords/`.
 
 ---
 
@@ -247,11 +249,10 @@ This document tracks the implementation progress for the Hey Spotify voice assis
 **Milestone 0:** ✅ Complete (7/7 tasks)  
 **Milestone 1:** ✅ Complete (4/4 tasks)  
 **Milestone 2:** ✅ Complete (4/4 tasks)  
-**Milestone 2:** 🔮 Planned (0/3 tasks)  
-**Milestone 3:** 🔮 Planned (0/2 tasks)  
+**Milestone 3:** ✅ Complete (2/2 tasks)  
 **Milestone 4:** 🔮 Planned (0/4 tasks)
 
-**Total Progress:** 15/20 tasks complete (75%)
+**Total Progress:** 17/21 tasks complete (81%)
 
 ---
 
@@ -261,4 +262,5 @@ This document tracks the implementation progress for the Hey Spotify voice assis
 - The architecture is designed to easily accommodate future milestones
 - Intent system has both rules (M0) and LLM (M2) paths ready
 - Rate limiting and retries are production-grade from day 1
-- Next priority: Milestone 1 (voice input)
+- Wake word configuration is now validated before browser initialization
+- Next priority: Milestone 4 (scalability and observability)
